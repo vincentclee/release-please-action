@@ -102,20 +102,27 @@ function loadOrBuildManifest(
       inputs.path
     );
   }
-  const manifestOverrides = inputs.fork || inputs.skipLabeling
-    ? {
-        fork: inputs.fork,
-        skipLabeling: inputs.skipLabeling,
-      }
-    : {};
+  
   core.debug('Loading manifest from config file');
   return Manifest.fromManifest(
     github,
     github.repository.defaultBranch,
     inputs.configFile,
     inputs.manifestFile,
-    manifestOverrides
-  );
+    {
+      fork: inputs.fork,
+      skipLabeling: inputs.skipLabeling,
+    }
+  ).then(manifest => {
+    // Override changelogHost for all paths if provided as action input and different from default
+    if (inputs.changelogHost && inputs.changelogHost !== DEFAULT_GITHUB_SERVER_URL) {
+      core.debug(`Overriding changelogHost to: ${inputs.changelogHost}`);
+      for (const path in manifest.repositoryConfig) {
+        manifest.repositoryConfig[path].changelogHost = inputs.changelogHost;
+      }
+    }
+    return manifest;
+  });
 }
 
 export async function main(fetchOverride?: any) {

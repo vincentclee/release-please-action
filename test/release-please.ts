@@ -244,6 +244,26 @@ describe('release-please-action', () => {
           sinon.match({fork: true}),
         );
       });
+      it('allows specifying changelog-host', async () => {
+        restoreEnv = mockInputs({
+          'changelog-host': 'https://ghe.example.com',
+        });
+        fakeManifest.createReleases.resolves([]);
+        fakeManifest.createPullRequests.resolves([]);
+        await action.main(fetch);
+        sinon.assert.calledOnce(fakeManifest.createReleases);
+        sinon.assert.calledOnce(fakeManifest.createPullRequests);
+
+        // Test that fromManifest is called without changelogHost in overrides
+        sinon.assert.calledWith(
+          fromManifestStub,
+          sinon.match.any,
+          sinon.match.string,
+          sinon.match.string,
+          sinon.match.string,
+          sinon.match(arg => !arg.hasOwnProperty('changelogHost')),
+        );
+      });
     });
 
     it('allows specifying manifest config paths', async () => {

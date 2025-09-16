@@ -255,6 +255,9 @@ describe('release-please-action', () => {
         sinon.assert.calledOnce(fakeManifest.createPullRequests);
 
         // Test that fromManifest is called without changelogHost in overrides
+        // This assertion verifies that changelogHost is not passed in the manifestOverrides
+        // because the implementation handles changelogHost by modifying the manifest
+        // after it's created, not by passing it as an override parameter.
         sinon.assert.calledWith(
           fromManifestStub,
           sinon.match.any,
@@ -263,6 +266,56 @@ describe('release-please-action', () => {
           sinon.match.string,
           sinon.match(arg => !arg.hasOwnProperty('changelogHost')),
         );
+      });
+      it('modifies repositoryConfig with custom changelog-host', async () => {
+        restoreEnv = mockInputs({
+          'changelog-host': 'https://ghe.example.com',
+        });
+
+        // Create a mock repositoryConfig on the existing fakeManifest
+        const mockRepositoryConfig = {
+          '.': { releaseType: 'node' },
+          'packages/foo': { releaseType: 'node' }
+        };
+        // Use Object.defineProperty to set the readonly property
+        Object.defineProperty(fakeManifest, 'repositoryConfig', {
+          value: mockRepositoryConfig,
+          writable: true,
+          configurable: true
+        });
+        fakeManifest.createReleases.resolves([]);
+        fakeManifest.createPullRequests.resolves([]);
+
+        await action.main(fetch);
+
+        // Verify that changelogHost was added to all paths in repositoryConfig
+        assert.strictEqual(fakeManifest.repositoryConfig['.'].changelogHost, 'https://ghe.example.com');
+        assert.strictEqual(fakeManifest.repositoryConfig['packages/foo'].changelogHost, 'https://ghe.example.com');
+      });
+      it('does not modify repositoryConfig when changelog-host is default', async () => {
+        restoreEnv = mockInputs({
+          'changelog-host': 'https://github.com', // This is the default
+        });
+
+        // Create a mock repositoryConfig on the existing fakeManifest
+        const mockRepositoryConfig = {
+          '.': { releaseType: 'node' },
+          'packages/foo': { releaseType: 'node' }
+        };
+        // Use Object.defineProperty to set the readonly property
+        Object.defineProperty(fakeManifest, 'repositoryConfig', {
+          value: mockRepositoryConfig,
+          writable: true,
+          configurable: true
+        });
+        fakeManifest.createReleases.resolves([]);
+        fakeManifest.createPullRequests.resolves([]);
+
+        await action.main(fetch);
+
+        // Verify that changelogHost was NOT added when using default value
+        assert.strictEqual(fakeManifest.repositoryConfig['.'].changelogHost, undefined);
+        assert.strictEqual(fakeManifest.repositoryConfig['packages/foo'].changelogHost, undefined);
       });
     });
 
